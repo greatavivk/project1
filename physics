@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hot Air Balloon Physics Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            color: #2c3e50;
+            font-weight: 300;
+        }
+
+        .info-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .info-btn:hover {
+            background: #2980b9;
+            transform: scale(1.1);
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 6rem 2rem 2rem;
+            min-height: 100vh;
+        }
+
+        .controls-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            height: fit-content;
+        }
+
+        .visualization-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
+            min-height: 600px;
+        }
+
+        .section-title {
+            font-size: 1.4rem;
+            color: #2c3e50;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .input-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #34495e;
+        }
+
+        .slider-container {
+            position: relative;
+            margin: 1rem 0;
+        }
+
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #3498db;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #3498db;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .outputs-section {
+            background: rgba(52, 152, 219, 0.1);
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .output-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid rgba(52, 152, 219, 0.2);
+        }
+
+        .output-item:last-child {
+            border-bottom: none;
+        }
+
+        .output-value {
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .status {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .status.rising {
+            background: #2ecc71;
+            color: white;
+        }
+
+        .status.hovering {
+            background: #f39c12;
+            color: white;
+        }
+
+        .status.descending {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .sky {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(to bottom, #87CEEB 0%, #98D8E8 100%);
+            overflow: hidden;
+        }
+
+        .cloud {
+            position: absolute;
+            background: white;
+            border-radius: 50px;
+            opacity: 0.8;
+            animation: float 20s infinite linear;
+        }
+
+        .cloud:before {
+            content: '';
+            position: absolute;
+            background: white;
+            border-radius: 50px;
+        }
+
+        .cloud1 {
+            width: 80px;
+            height: 40px;
+            top: 20%;
+            left: -100px;
+        }
+
+        .cloud1:before {
+            width: 60px;
+            height: 60px;
+            top: -30px;
+            left: 10px;
+        }
+
+        .cloud2 {
+            width: 100px;
+            height: 50px;
+            top: 40%;
+            left: -120px;
+            animation-delay: -10s;
+        }
+
+        .cloud2:before {
+            width: 80px;
+            height: 80px;
+            top: -40px;
+            left: 15px;
+        }
+
+        @keyframes float {
+            0% { transform: translateX(-100px); }
+            100% { transform: translateX(calc(100vw + 100px)); }
+        }
+
+        .balloon-container {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            transition: transform 2s ease;
+        }
+
+        .balloon {
+            width: 150px;
+            height: 200px;
+            background: radial-gradient(circle at 30% 30%, #ff6b6b, #ee5a52);
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            position: relative;
+            animation: gentle-sway 3s ease-in-out infinite;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .balloon-highlight {
+            position: absolute;
+            top: 20px;
+            left: 30px;
+            width: 40px;
+            height: 60px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 50%;
+            transform: rotate(15deg);
+        }
+
+        .basket {
+            position: absolute;
+            top: 200px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 30px;
+            background: #8B4513;
+            border-radius: 5px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .rope {
+            position: absolute;
+            top: 190px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 2px;
+            height: 20px;
+            background: #654321;
+        }
+
+        .flame {
+            position: absolute;
+            top: 185px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 25px;
+            background: radial-gradient(circle, #ff4500, #ff8c00);
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            animation: flicker 0.5s ease-in-out infinite alternate;
+        }
+
+        .air-arrow {
+            position: absolute;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 24px;
+            pointer-events: none;
+            animation: air-flow 2s ease-in-out infinite;
+        }
+
+        .arrow-up-1 {
+            top: 150px;
+            left: 45%;
+            animation-delay: 0s;
+        }
+
+        .arrow-up-2 {
+            top: 120px;
+            left: 55%;
+            animation-delay: 0.3s;
+        }
+
+        .arrow-up-3 {
+            top: 90px;
+            left: 40%;
+            animation-delay: 0.6s;
+        }
+
+        .arrow-up-4 {
+            top: 60px;
+            left: 60%;
+            animation-delay: 0.9s;
+        }
+
+        .arrow-down-1 {
+            top: 40px;
+            left: 30%;
+            animation-delay: 1.2s;
+            transform: rotate(180deg);
+        }
+
+        .arrow-down-2 {
+            top: 80px;
+            left: 70%;
+            animation-delay: 1.5s;
+            transform: rotate(180deg);
+        }
+
+        .arrow-down-3 {
+            top: 130px;
+            left: 25%;
+            animation-delay: 1.8s;
+            transform: rotate(180deg);
+        }
+
+        @keyframes gentle-sway {
+            0%, 100% { transform: rotate(-1deg); }
+            50% { transform: rotate(1deg); }
+        }
+
+        @keyframes flicker {
+            0% { transform: scale(1) translateX(-50%); }
+            100% { transform: scale(1.1) translateX(-50%); }
+        }
+
+        @keyframes air-flow {
+            0% { 
+                opacity: 0.3;
+                transform: translateY(0px) scale(0.8);
+            }
+            50% { 
+                opacity: 0.8;
+                transform: translateY(-10px) scale(1);
+            }
+            100% { 
+                opacity: 0.3;
+                transform: translateY(-20px) scale(0.8);
+            }
+        }
+
+        .data-overlay {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.9);
+            padding: 1rem;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            min-width: 200px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: white;
+            margin: 5% auto;
+            padding: 2rem;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: black;
+        }
+
+        .advanced-controls {
+            display: none;
+            margin-top: 1rem;
+            padding: 1rem;
+            background: rgba(52, 152, 219, 0.05);
+            border-radius: 10px;
+        }
+
+        .toggle-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 1rem;
+        }
+
+        .toggle-btn:hover {
+            background: #2980b9;
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                padding: 5rem 1rem 1rem;
+            }
+            
+            .header {
+                padding: 1rem;
+            }
+            
+            .header h1 {
+                font-size: 1.4rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎈 Hot Air Balloon Physics Simulator</h1>
+        <button class="info-btn" onclick="openModal()">?</button>
+    </div>
+
+    <div class="main-container">
+        <div class="controls-panel">
+            <h2 class="section-title">🎛️ Controls</h2>
+            
+            <div class="input-group">
+                <label for="temp-slider">Inside Balloon Temperature: <span id="temp-value">60</span>°C</label>
+                <div class="slider-container">
+                    <input type="range" id="temp-slider" class="slider" min="20" max="120" value="60">
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label for="volume-input">Balloon Volume (m³)</label>
+                <input type="number" id="volume-input" class="input-field" value="2800" min="1000" max="10000">
+            </div>
+
+            <div class="input-group">
+                <label for="payload-input">Payload Weight (kg)</label>
+                <input type="number" id="payload-input" class="input-field" value="500" min="0" max="2000">
+            </div>
+
+            <div class="input-group">
+                <label for="outside-temp-input">Outside Air Temperature (°C)</label>
+                <input type="number" id="outside-temp-input" class="input-field" value="20" min="-20" max="50">
+            </div>
+
+            <button class="toggle-btn" onclick="toggleAdvanced()">Show Advanced Controls</button>
+            
+            <div id="advanced-controls" class="advanced-controls">
+                <div class="input-group">
+                    <label for="pressure-input">Air Pressure (Pa)</label>
+                    <input type="number" id="pressure-input" class="input-field" value="101325" min="80000" max="120000">
+                </div>
+            </div>
+
+            <div class="outputs-section">
+                <h3 class="section-title">📊 Real-time Data</h3>
+                <div class="output-item">
+                    <span>Air Density Inside:</span>
+                    <span id="density-inside" class="output-value">1.00 kg/m³</span>
+                </div>
+                <div class="output-item">
+                    <span>Air Density Outside:</span>
+                    <span id="density-outside" class="output-value">1.20 kg/m³</span>
+                </div>
+                <div class="output-item">
+                    <span>Buoyant Force:</span>
+                    <span id="buoyant-force" class="output-value">32,000 N</span>
+                </div>
+                <div class="output-item">
+                    <span>Net Lift:</span>
+                    <span id="net-lift" class="output-value">27,000 N</span>
+                </div>
+                <div class="output-item">
+                    <span>Status:</span>
+                    <span id="status" class="status rising">Rising</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="visualization-panel">
+            <div class="sky">
+                <div class="cloud cloud1"></div>
+                <div class="cloud cloud2"></div>
+            </div>
+            
+            <div id="balloon-container" class="balloon-container">
+                <div class="balloon">
+                    <div class="balloon-highlight"></div>
+                    <!-- Air flow arrows inside balloon -->
+                    <div class="air-arrow arrow-up-1">↑</div>
+                    <div class="air-arrow arrow-up-2">↑</div>
+                    <div class="air-arrow arrow-up-3">↑</div>
+                    <div class="air-arrow arrow-up-4">↑</div>
+                    <div class="air-arrow arrow-down-1">↑</div>
+                    <div class="air-arrow arrow-down-2">↑</div>
+                    <div class="air-arrow arrow-down-3">↑</div>
+                </div>
+                <div class="rope"></div>
+                <div class="flame"></div>
+                <div class="basket"></div>
+            </div>
+
+            <div class="data-overlay">
+                <div><strong>Temperature:</strong> <span id="overlay-temp">60°C</span></div>
+                <div><strong>Altitude:</strong> <span id="overlay-altitude">500m</span></div>
+                <div><strong>Vertical Speed:</strong> <span id="overlay-speed">+2.5 m/s</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="info-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2>Physics Behind Hot Air Balloons</h2>
+            <p><strong>Archimedes' Principle:</strong> A hot air balloon rises because the hot air inside is less dense than the cooler air outside. This creates a buoyant force that lifts the balloon.</p>
+            
+            <h3>Key Formulas:</h3>
+            <p><strong>Air Density:</strong> ρ = P / (R × T)</p>
+            <ul>
+                <li>ρ = air density (kg/m³)</li>
+                <li>P = air pressure (Pa)</li>
+                <li>R = specific gas constant for air (287 J/kg·K)</li>
+                <li>T = temperature (K)</li>
+            </ul>
+            
+            <p><strong>Buoyant Force:</strong> F_b = ρ_outside × V × g</p>
+            <p><strong>Net Lift:</strong> F_net = F_buoyant - (m_balloon + m_payload) × g</p>
+            
+            <p>When the net lift is positive, the balloon rises. When negative, it descends. The pilot controls this by heating or cooling the air inside the balloon envelope.</p>
+        </div>
+    </div>
+
+    <script>
+        // Physics constants
+        const g = 9.81; // gravity
+        const R = 287; // specific gas constant for air
+        const balloonMass = 300; // kg (envelope + equipment)
+
+        // Get DOM elements
+        const tempSlider = document.getElementById('temp-slider');
+        const tempValue = document.getElementById('temp-value');
+        const volumeInput = document.getElementById('volume-input');
+        const payloadInput = document.getElementById('payload-input');
+        const outsideTempInput = document.getElementById('outside-temp-input');
+        const pressureInput = document.getElementById('pressure-input');
+        const balloonContainer = document.getElementById('balloon-container');
+
+        // Output elements
+        const densityInsideEl = document.getElementById('density-inside');
+        const densityOutsideEl = document.getElementById('density-outside');
+        const buoyantForceEl = document.getElementById('buoyant-force');
+        const netLiftEl = document.getElementById('net-lift');
+        const statusEl = document.getElementById('status');
+        const overlayTempEl = document.getElementById('overlay-temp');
+        const overlayAltitudeEl = document.getElementById('overlay-altitude');
+        const overlaySpeedEl = document.getElementById('overlay-speed');
+
+        // Animation variables
+        let currentAltitude = 500;
+        let verticalSpeed = 0;
+        let lastUpdateTime = Date.now();
+
+        function updatePhysics() {
+            // Get current values
+            const insideTemp = parseFloat(tempSlider.value) + 273.15; // Convert to Kelvin
+            const outsideTemp = parseFloat(outsideTempInput.value) + 273.15;
+            const volume = parseFloat(volumeInput.value);
+            const payload = parseFloat(payloadInput.value);
+            const pressure = parseFloat(pressureInput.value);
+
+            // Calculate air densities
+            const densityInside = pressure / (R * insideTemp);
+            const densityOutside = pressure / (R * outsideTemp);
+
+            // Calculate forces
+            const buoyantForce = densityOutside * volume * g;
+            const totalMass = balloonMass + payload + (densityInside * volume);
+            const weight = totalMass * g;
+            const netLift = buoyantForce - weight;
+
+            // Update display values
+            densityInsideEl.textContent = densityInside.toFixed(3) + ' kg/m³';
+            densityOutsideEl.textContent = densityOutside.toFixed(3) + ' kg/m³';
+            buoyantForceEl.textContent = (buoyantForce / 1000).toFixed(1) + ' kN';
+            netLiftEl.textContent = (netLift / 1000).toFixed(1) + ' kN';
+
+            // Update status and visual position
+            let status, statusClass;
+            if (netLift > 1000) {
+                status = 'Rising';
+                statusClass = 'rising';
+                verticalSpeed = Math.min(verticalSpeed + 0.1, 5);
+            } else if (netLift < -1000) {
+                status = 'Descending';
+                statusClass = 'descending';
+                verticalSpeed = Math.max(verticalSpeed - 0.1, -5);
+            } else {
+                status = 'Hovering';
+                statusClass = 'hovering';
+                verticalSpeed *= 0.9; // Gradual stop
+            }
+
+            statusEl.textContent = status;
+            statusEl.className = 'status ' + statusClass;
+
+            // Update altitude and balloon position
+            const currentTime = Date.now();
+            const deltaTime = (currentTime - lastUpdateTime) / 1000; // Convert to seconds
+            lastUpdateTime = currentTime;
+
+            currentAltitude += verticalSpeed * deltaTime * 10; // Scale for visual effect
+            currentAltitude = Math.max(50, Math.min(currentAltitude, 950)); // Keep in bounds
+
+            // Update balloon position (invert Y for screen coordinates)
+            const screenY = 50 + (950 - currentAltitude) * 0.5; // Map altitude to screen position
+            balloonContainer.style.transform = `translate(-50%, -50%) translateY(${screenY - 300}px)`;
+
+            // Update overlay data
+            overlayTempEl.textContent = tempSlider.value + '°C';
+            overlayAltitudeEl.textContent = Math.round(currentAltitude) + 'm';
+            overlaySpeedEl.textContent = (verticalSpeed >= 0 ? '+' : '') + verticalSpeed.toFixed(1) + ' m/s';
+        }
+
+        // Event listeners
+        tempSlider.addEventListener('input', function() {
+            tempValue.textContent = this.value;
+            updatePhysics();
+        });
+
+        volumeInput.addEventListener('input', updatePhysics);
+        payloadInput.addEventListener('input', updatePhysics);
+        outsideTempInput.addEventListener('input', updatePhysics);
+        pressureInput.addEventListener('input', updatePhysics);
+
+        // Modal functions
+        function openModal() {
+            document.getElementById('info-modal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('info-modal').style.display = 'none';
+        }
+
+        // Advanced controls toggle
+        function toggleAdvanced() {
+            const advancedControls = document.getElementById('advanced-controls');
+            const button = document.querySelector('.toggle-btn');
+            
+            if (advancedControls.style.display === 'none' || advancedControls.style.display === '') {
+                advancedControls.style.display = 'block';
+                button.textContent = 'Hide Advanced Controls';
+            } else {
+                advancedControls.style.display = 'none';
+                button.textContent = 'Show Advanced Controls';
+            }
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('info-modal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+
+        // Initialize
+        updatePhysics();
+        
+        // Continuous animation updates
+        setInterval(updatePhysics, 100);
+    </script>
+</body>
+</html>
