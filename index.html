@@ -524,7 +524,7 @@
             <div id="advanced-controls" class="advanced-controls">
                 <div class="input-group">
                     <label for="pressure-input">Air Pressure (Pa)</label>
-                    <input type="number" id="pressure-input" class="input-field" value="101325" min="80000" max="120000">
+                    <input type="number" id="pressure-input" class="input-field" value="80000" min="70000" max="101325">
                 </div>
             </div>
 
@@ -645,36 +645,60 @@
             const payload = parseFloat(payloadInput.value);
             const pressure = parseFloat(pressureInput.value);
 
-            // Calculate air densities
+            // Core proportional relationships for realistic balloon physics
+            // ρ ∝ 1/T (inverse proportionality - density decreases as temperature increases)
             const densityInside = pressure / (R * insideTemp);
             const densityOutside = pressure / (R * outsideTemp);
 
-            // Calculate forces
+            // Lift Ratio ∝ (T_inside / T_outside) × V
+            // This captures the fundamental physics: lift potential scales with both
+            // temperature differential and balloon volume
+            const tempRatio = insideTemp / outsideTemp;
+            const liftRatio = tempRatio * (volume / 2800); // Normalize by standard volume
+            
+            // Calculate buoyant force - this is the upward force from displaced air
             const buoyantForce = densityOutside * volume * g;
-            const totalMass = balloonMass + payload + (densityInside * volume);
+            
+            // Calculate weight of the balloon system
+            const airMassInside = densityInside * volume;
+            const totalMass = balloonMass + payload + airMassInside;
             const weight = totalMass * g;
-            const netLift = buoyantForce - weight;
+            
+            // Net lift is the difference - but now modulated by our proportional relationships
+            const baseNetLift = buoyantForce - weight;
+            
+            // Apply proportional scaling based on temperature-volume relationship
+            // When T_inside ≈ T_outside, tempRatio ≈ 1, so minimal lift regardless of volume
+            // When T_inside > T_outside significantly, larger volumes amplify the effect
+            const proportionalLift = baseNetLift * Math.pow(liftRatio, 1.2); // Slight exponential for realism
 
             // Update display values
             densityInsideEl.textContent = densityInside.toFixed(3) + ' kg/m³';
             densityOutsideEl.textContent = densityOutside.toFixed(3) + ' kg/m³';
             buoyantForceEl.textContent = (buoyantForce / 1000).toFixed(1) + ' kN';
-            netLiftEl.textContent = (netLift / 1000).toFixed(1) + ' kN';
+            netLiftEl.textContent = (proportionalLift / 1000).toFixed(1) + ' kN';
 
-            // Update status and visual position
+            // Dynamic behavior based on proportional lift
             let status, statusClass;
-            if (netLift > 1000) {
+            const liftThreshold = 200 * Math.sqrt(volume / 2800); // Scale threshold with volume
+            
+            if (proportionalLift > liftThreshold) {
                 status = 'Rising';
                 statusClass = 'rising';
-                verticalSpeed = Math.min(verticalSpeed + 0.1, 5);
-            } else if (netLift < -1000) {
+                // Acceleration proportional to lift ratio and volume
+                const acceleration = 0.02 * Math.log(liftRatio + 1) * Math.sqrt(volume / 2800);
+                verticalSpeed = Math.min(verticalSpeed + acceleration, 4);
+            } else if (proportionalLift < -liftThreshold) {
                 status = 'Descending';
                 statusClass = 'descending';
-                verticalSpeed = Math.max(verticalSpeed - 0.1, -5);
+                const deceleration = 0.02 * Math.log(Math.abs(liftRatio - 1) + 1) * Math.sqrt(volume / 2800);
+                verticalSpeed = Math.max(verticalSpeed - deceleration, -4);
             } else {
                 status = 'Hovering';
                 statusClass = 'hovering';
-                verticalSpeed *= 0.9; // Gradual stop
+                // More realistic hovering - gradual settling based on how close to equilibrium
+                const equilibriumFactor = 1 - Math.abs(proportionalLift) / (liftThreshold * 2);
+                verticalSpeed *= (0.85 + equilibriumFactor * 0.1);
             }
 
             statusEl.textContent = status;
@@ -682,20 +706,25 @@
 
             // Update altitude and balloon position
             const currentTime = Date.now();
-            const deltaTime = (currentTime - lastUpdateTime) / 1000; // Convert to seconds
+            const deltaTime = (currentTime - lastUpdateTime) / 1000;
             lastUpdateTime = currentTime;
 
-            currentAltitude += verticalSpeed * deltaTime * 10; // Scale for visual effect
-            currentAltitude = Math.max(50, Math.min(currentAltitude, 950)); // Keep in bounds
+            // Movement now scales with the proportional relationships
+            const movementScale = 6 * Math.sqrt(volume / 2800); // Larger balloons move more dramatically
+            currentAltitude += verticalSpeed * deltaTime * movementScale;
+            currentAltitude = Math.max(50, Math.min(currentAltitude, 950));
 
-            // Update balloon position (invert Y for screen coordinates)
-            const screenY = 50 + (950 - currentAltitude) * 0.5; // Map altitude to screen position
+            // Update balloon position
+            const screenY = 50 + (950 - currentAltitude) * 0.5;
             balloonContainer.style.transform = `translate(-50%, -50%) translateY(${screenY - 300}px)`;
 
-            // Update overlay data
+            // Update overlay data with enhanced information
             overlayTempEl.textContent = tempSlider.value + '°C';
             overlayAltitudeEl.textContent = Math.round(currentAltitude) + 'm';
             overlaySpeedEl.textContent = (verticalSpeed >= 0 ? '+' : '') + verticalSpeed.toFixed(1) + ' m/s';
+            
+            // Optional: Log the relationships for understanding (can be removed)
+            // console.log(`Temp Ratio: ${tempRatio.toFixed(2)}, Lift Ratio: ${liftRatio.toFixed(2)}, Proportional Lift: ${(proportionalLift/1000).toFixed(1)}kN`);
         }
 
         // Event listeners
